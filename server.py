@@ -1,18 +1,65 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import os
 
-app = Flask(__name__, static_url_path="", static_folder=".")
+app = Flask(__name__)
 
-# ✅ Fix CORS for all routes, including preflight OPTIONS
+# ✅ Enable CORS for localhost frontends
 CORS(app, resources={r"/*": {"origins": ["http://localhost:8080"]}}, supports_credentials=True)
 
+# 🔐 Your API Keys and Constants
 UNISAT_API_KEY = "bf4358eb9068258ccf5ae9049df5344d04d7f8fd6724b8ddf9185b7640d2006f"
 TREASURY = "bc1pra6pu30zu5ux72fs0jryh2ykt2zdqkcc2t7n98rrjpy70mnm3fcsxgd9xy"
 WEB3FORMS_KEY = "0d77267c-e8c1-4ded-98cb-f6e909a234d5"
 MAGICEDEN_API_KEY = "6ed7b13e-063c-42fc-a27b-9bd87f8f7219"
 
+# ✅ Health Check / Root Route
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"status": "Server is running!"})
+
+# ✅ Rune Converter Route
+@app.route("/rune-convert", methods=["POST"])
+def rune_converter():
+    data = request.json
+    rune_slug = data.get("runeSlug")
+    usd_price = float(data.get("usdPrice", 0))
+
+    if not rune_slug or not usd_price:
+        return jsonify({"error": "Missing runeSlug or usdPrice"}), 400
+
+    try:
+        me_response = requests.get(
+            f"https://runes-api.magiceden.dev/v1/runes/token/{rune_slug}",
+            headers={"Authorization": f"Bearer {MAGICEDEN_API_KEY}"}
+        )
+
+        if me_response.status_code != 200:
+            return jsonify({"error": "Failed to fetch Rune data", "details": me_response.text}), 502
+
+        rune_data = me_response.json()
+        rune_btc = float(rune_data.get("lastSalePriceInBtc"))
+
+        btc_res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
+        btc_price = btc_res.json()["bitcoin"]["usd"]
+
+        btc_needed = usd_price / btc_price
+        runes_needed = btc_needed / rune_btc
+
+        return jsonify({
+            "runeSlug": rune_slug,
+            "usdPrice": usd_price,
+            "btcPriceUSD": btc_price,
+            "runeLastSaleBTC": rune_btc,
+            "estimatedRunes": round(runes_needed, 2)
+        })
+
+    except Exception as e:
+        print("🔥 Error in rune-convert:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+# ✅ Buy Route
 @app.route("/buy", methods=["POST"])
 def buy():
     data = request.json
@@ -75,49 +122,7 @@ def buy():
         print("\n🔥 EXCEPTION:", str(e))
         return jsonify({"error": "Exception during transfer", "details": str(e)}), 500
 
-@app.route("/rune-convert", methods=["POST"])
-def rune_converter():
-    data = request.json
-    rune_slug = data.get("runeSlug")
-    usd_price = float(data.get("usdPrice", 0))
-
-    if not rune_slug or not usd_price:
-        return jsonify({"error": "Missing runeSlug or usdPrice"}), 400
-
-    try:
-        me_response = requests.get(
-            f"https://runes-api.magiceden.dev/v1/runes/token/{rune_slug}",
-            headers={"Authorization": f"Bearer {MAGICEDEN_API_KEY}"}
-        )
-
-        if me_response.status_code != 200:
-            return jsonify({"error": "Failed to fetch Rune data", "details": me_response.text}), 502
-
-        rune_data = me_response.json()
-        rune_btc = float(rune_data.get("lastSalePriceInBtc"))
-
-        btc_res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
-        btc_price = btc_res.json()["bitcoin"]["usd"]
-
-        btc_needed = usd_price / btc_price
-        runes_needed = btc_needed / rune_btc
-
-        return jsonify({
-            "runeSlug": rune_slug,
-            "usdPrice": usd_price,
-            "btcPriceUSD": btc_price,
-            "runeLastSaleBTC": rune_btc,
-            "estimatedRunes": round(runes_needed, 2)
-        })
-
-    except Exception as e:
-        print("🔥 Error in rune-convert:", str(e))
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/")
-def index():
-    return send_from_directory(".", "index.html")
-
+# ✅ App Entrypoint
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, host="0.0.0.0", port=port)
