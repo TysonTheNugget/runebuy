@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: rune-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: ""
+    startCommand: python server.py
+    branch: main
+    repo: https://github.com/TysonTheNugget/runebuy
