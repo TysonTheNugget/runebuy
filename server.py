@@ -4,7 +4,9 @@ import requests
 import os
 
 app = Flask(__name__, static_url_path="", static_folder=".")
-CORS(app, origins=["http://localhost:8080"], supports_credentials=True)
+
+# ✅ Fix CORS for all routes, including preflight OPTIONS
+CORS(app, resources={r"/*": {"origins": ["http://localhost:8080"]}}, supports_credentials=True)
 
 UNISAT_API_KEY = "bf4358eb9068258ccf5ae9049df5344d04d7f8fd6724b8ddf9185b7640d2006f"
 TREASURY = "bc1pra6pu30zu5ux72fs0jryh2ykt2zdqkcc2t7n98rrjpy70mnm3fcsxgd9xy"
