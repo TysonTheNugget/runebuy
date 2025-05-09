@@ -4,7 +4,7 @@ import requests
 import os
 
 app = Flask(__name__, static_url_path="", static_folder=".")
-CORS(app)  # <-- this enables CORS for all routes
+CORS(app, origins=["http://localhost:8080"], supports_credentials=True)
 
 UNISAT_API_KEY = "bf4358eb9068258ccf5ae9049df5344d04d7f8fd6724b8ddf9185b7640d2006f"
 TREASURY = "bc1pra6pu30zu5ux72fs0jryh2ykt2zdqkcc2t7n98rrjpy70mnm3fcsxgd9xy"
@@ -83,7 +83,6 @@ def rune_converter():
         return jsonify({"error": "Missing runeSlug or usdPrice"}), 400
 
     try:
-        # Get Rune info from Magic Eden
         me_response = requests.get(
             f"https://runes-api.magiceden.dev/v1/runes/token/{rune_slug}",
             headers={"Authorization": f"Bearer {MAGICEDEN_API_KEY}"}
@@ -95,11 +94,9 @@ def rune_converter():
         rune_data = me_response.json()
         rune_btc = float(rune_data.get("lastSalePriceInBtc"))
 
-        # Get current BTC price in USD
         btc_res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
         btc_price = btc_res.json()["bitcoin"]["usd"]
 
-        # USD → BTC → Runes
         btc_needed = usd_price / btc_price
         runes_needed = btc_needed / rune_btc
 
