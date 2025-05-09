@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rune Price Converter</title>
+  <style>
+    body {
+      background: #000;
+      color: #C4A2CC;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 1em;
+      width: 300px;
+      max-width: 90%;
+      background: #1a1a1a;
+      color: #C4A2CC;
+      border: 2px solid #C4A2CC;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    #result {
+      margin-top: 20px;
+      background: #1a1a1a;
+      padding: 20px;
+      border: 2px solid #C4A2CC;
+      max-width: 400px;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <h1>Rune USD Converter</h1>
+
+  <input type="text" id="runeSlug" placeholder="Rune slug (e.g. wishy-washy-machine)" />
+  <input type="number" id="usdPrice" placeholder="USD price (e.g. 20)" />
+  <button onclick="convertRune()">Convert</button>
+
+  <div id="result"></div>
+
+  <script>
+    const API_BASE = "https://rune-backend.onrender.com"; // CHANGE THIS IF NEEDED
+
+    async function convertRune() {
+      const slug = document.getElementById("runeSlug").value.trim();
+      const usd = document.getElementById("usdPrice").value;
+
+      if (!slug || !usd) return alert("Please enter both fields.");
+
+      const resDiv = document.getElementById("result");
+      resDiv.innerText = "Calculating...";
+
+      try {
+        const res = await fetch(`${API_BASE}/rune-convert`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ runeSlug: slug, usdPrice: parseFloat(usd) })
+        });
+
+        const data = await res.json();
+
+        if (data.estimatedRunes) {
+          resDiv.innerHTML = `
+            <p><strong>Rune:</strong> ${data.runeSlug}</p>
+            <p><strong>USD:</strong> $${data.usdPrice}</p>
+            <p><strong>BTC Price:</strong> $${data.btcPriceUSD}</p>
+            <p><strong>Last Sale (BTC):</strong> ${data.runeLastSaleBTC} BTC</p>
+            <p><strong>Estimated Rune Needed:</strong> <span style="color:#0f0">${data.estimatedRunes}</span></p>
+          `;
+        } else {
+          resDiv.innerText = "❌ Failed to convert.";
+        }
+      } catch (err) {
+        console.error(err);
+        resDiv.innerText = "❌ Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
